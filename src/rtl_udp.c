@@ -99,6 +99,8 @@ static int *atan_lut = NULL;
 static int atan_lut_size = 131072; /* 512 KB */
 static int atan_lut_coef = 8;
 
+static int last_capture_freq = 0;
+
 int nearest_gain(int target_gain);
 
 struct fm_state
@@ -582,6 +584,7 @@ static void optimal_settings(struct fm_state *fm, int freq, int hopping)
 	freq_offset = capture_rate/4;
 	capture_freq = fm->freqs[freq] + capture_rate/4;
 	capture_freq += fm->edge * fm->sample_rate / 2;
+  last_capture_freq = capture_freq;
 	fm->output_scale = (1<<15) / (128 * fm->downsample);
 	if (fm->output_scale < 1) {
 		fm->output_scale = 1;}
@@ -722,8 +725,8 @@ static unsigned int chars_to_int(unsigned char* buf) {
 }
 
 static void *socket_thread_fn(void *arg) {
-	struct fm_state *fm = arg;
-	int port = 6020;
+  struct fm_state *fm = arg;
+  int port = 6020;
   int r, n;
   int sockfd, newsockfd, portno;
   socklen_t clilen;
@@ -732,9 +735,9 @@ static void *socket_thread_fn(void *arg) {
 
 	sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-  if (sockfd < 0) {
-  	perror("ERROR opening socket");
-  }
+	if (sockfd < 0) {
+		perror("ERROR opening socket");
+	}
 
 	bzero((char *) &serv_addr, sizeof(serv_addr));
 
@@ -758,6 +761,19 @@ static void *socket_thread_fn(void *arg) {
 			fm->freqs[0] = new_freq;
 			optimal_settings(fm, 0, 1);
 			fprintf (stderr, "Tuning to: %d [Hz] (central freq: %d [Hz])\n", new_freq, new_freq + freq_offset);
+		}
+
+		if(buffer[0] == 4) {
+			new_freq = last_capture_freq + 100000;
+			fm->freqs[0] = new_freq;
+			optimal_settings(fm, 0, 1);
+			fprintf (stderr, "Increasing tuning to: %d [Hz] (central freq: %d [Hz])\n", new_freq, new_freq + freq_offset);
+		}
+		if(buffer[0] == 5) {
+			new_freq = last_capture_freq - 100000;
+			fm->freqs[0] = new_freq;
+			optimal_settings(fm, 0, 1);
+			fprintf (stderr, "Decreasing tuning to: %d [Hz] (central freq: %d [Hz])\n", new_freq, new_freq + freq_offset);
 		}
 
 		if(buffer[0] == 1) {
