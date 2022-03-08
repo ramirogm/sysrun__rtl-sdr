@@ -767,14 +767,14 @@ static void *socket_thread_fn(void *arg) {
 			new_freq = last_capture_freq - 25000; // 
 			fm->freqs[0] = fm->freqs[0] - 25000; // new_freq;
 			optimal_settings(fm, 0, 1);
-			fprintf (stderr, "Decreasing tuning to: %d [Hz] (central freq: %d [Hz])\n", new_freq, new_freq + freq_offset);
+			fprintf (stderr, "Decreasing tuning to: %d [Hz] (central freq: %d [Hz]) - freq_offset: %d\n", new_freq, new_freq + freq_offset, freq_offset);
 		}
 		if(buffer[0] == 5) {
 			new_freq = last_capture_freq + 25000; 
 			// fm->freqs[0] = new_freq;
 			fm->freqs[0] = fm->freqs[0] + 25000; // new_freq;
 			optimal_settings(fm, 0, 1);
-			fprintf (stderr, "Increasing tuning to: %d [Hz] (central freq: %d [Hz])\n", new_freq, new_freq + freq_offset);
+			fprintf (stderr, "Increasing tuning to: %d [Hz] (central freq: %d [Hz]) - freq_offset: %d\n", new_freq, new_freq + freq_offset, freq_offset);
 		}
 
 		if(buffer[0] == 1) {
