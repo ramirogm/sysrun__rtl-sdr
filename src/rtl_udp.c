@@ -584,7 +584,6 @@ static void optimal_settings(struct fm_state *fm, int freq, int hopping)
 	freq_offset = capture_rate/4;
 	capture_freq = fm->freqs[freq] + capture_rate/4;
 	capture_freq += fm->edge * fm->sample_rate / 2;
-  last_capture_freq = capture_freq;
 	fm->output_scale = (1<<15) / (128 * fm->downsample);
 	if (fm->output_scale < 1) {
 		fm->output_scale = 1;}
@@ -724,6 +723,7 @@ static unsigned int chars_to_int(unsigned char* buf) {
 	return val;
 }
 
+//
 static void *socket_thread_fn(void *arg) {
   struct fm_state *fm = arg;
   int port = 6020;
@@ -732,6 +732,7 @@ static void *socket_thread_fn(void *arg) {
   socklen_t clilen;
   unsigned char buffer[5];
   struct sockaddr_in serv_addr, cli_addr;
+  int tune_step  = 100000;
 
 	sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
@@ -763,18 +764,16 @@ static void *socket_thread_fn(void *arg) {
 			fprintf (stderr, "Tuning to: %d [Hz] (central freq: %d [Hz])\n", new_freq, new_freq + freq_offset);
 		}
 
+
 		if(buffer[0] == 4) {
-			new_freq = last_capture_freq - 25000; // 
-			fm->freqs[0] = fm->freqs[0] - 25000; // new_freq;
+			fm->freqs[0] = fm->freqs[0] - tune_step;
 			optimal_settings(fm, 0, 1);
-			fprintf (stderr, "Decreasing tuning to: %d [Hz] (central freq: %d [Hz]) - freq_offset: %d\n", new_freq, new_freq + freq_offset, freq_offset);
+			fprintf (stderr, "Decreasing tuning to: %d [Hz] (central freq: %d [Hz], lower central freq: %d [Hz]) - freq_offset: %d\n", fm->freqs[0], fm->freqs[0] - freq_offset, fm->freqs[0] + freq_offset, freq_offset);
 		}
 		if(buffer[0] == 5) {
-			new_freq = last_capture_freq + 25000; 
-			// fm->freqs[0] = new_freq;
-			fm->freqs[0] = fm->freqs[0] + 25000; // new_freq;
+			fm->freqs[0] = fm->freqs[0] + tune_step;
 			optimal_settings(fm, 0, 1);
-			fprintf (stderr, "Increasing tuning to: %d [Hz] (central freq: %d [Hz]) - freq_offset: %d\n", new_freq, new_freq + freq_offset, freq_offset);
+			fprintf (stderr, "Increasing tuning to: %d [Hz] (central freq: %d [Hz], lower central freq: %d [Hz]) - freq_offset: %d\n", fm->freqs[0], fm->freqs[0] - freq_offset, fm->freqs[0] + freq_offset, freq_offset);
 		}
 
 		if(buffer[0] == 1) {
@@ -917,7 +916,7 @@ int nearest_gain(int target_gain)
 
 void fm_init(struct fm_state *fm)
 {
-	fm->freqs[0] = 100000000;
+	fm->freqs[0] = 100000000;  // 100 MHz
 	fm->sample_rate = DEFAULT_SAMPLE_RATE;
 	fm->squelch_level = 0;
 	fm->conseq_squelch = 20;
@@ -1121,9 +1120,11 @@ int main(int argc, char **argv)
 	/* WBFM is special */
 	// I really should loop over everything
 	// but you are more wrong for scanning broadcast FM
-	if (wb_mode) {
-		fm.freqs[0] += 16000;
-	}
+
+  // Disabled because NO SCANNING
+	// if (wb_mode) {
+	// 	fm.freqs[0] += 16000;
+	// }
 
 	if (fm.deemph) {
 		fm.deemph_a = (int)round(1.0/((1.0-exp(-1.0/(fm.output_rate * 75e-6)))));
